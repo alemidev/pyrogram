@@ -29,7 +29,7 @@ from configparser import ConfigParser
 from hashlib import sha256
 from importlib import import_module
 from pathlib import Path
-from typing import Union, List, Optional
+from typing import Union, List, Dict, Optional
 
 import pyrogram
 from pyrogram import raw
@@ -259,6 +259,10 @@ class Client(Methods, Scaffold):
 
     async def __aexit__(self, *args):
         await self.stop()
+
+    @property
+    def running(self) -> Dict[int, asyncio.coroutine]:
+        return self.dispatcher.running_callbacks
 
     @property
     def proxy(self):

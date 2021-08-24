@@ -77,6 +77,7 @@ class Dispatcher:
 
         self.handler_worker_tasks = []
         self.locks_list = []
+        self.running_callbacks = {}
 
         self.updates_queue = asyncio.Queue()
         self.groups = OrderedDict()
@@ -220,20 +221,26 @@ class Dispatcher:
 
                             try:
                                 if inspect.iscoroutinefunction(handler.callback):
-                                    await handler.callback(self.client, *args)
+                                    cb = handler.callback(self.client, *args)
                                 else:
-                                    await self.loop.run_in_executor(
+                                    cb =  self.loop.run_in_executor(
                                         self.client.executor,
                                         handler.callback,
                                         self.client,
                                         *args
                                     )
+                                if hash(cb) in self.running_callbacks: # should never happen but lemme test nonetheless
+                                    raise KeyError("Coroutine has not an unique hash, ignoring") # will get rid of these later
+                                self.running_callbacks[hash(cb)] = cb
+                                await cb
                             except pyrogram.StopPropagation:
                                 raise
                             except pyrogram.ContinuePropagation:
                                 continue
                             except Exception as e:
                                 log.error(e, exc_info=True)
+                            finally:
+                                self.running_callbacks.pop(hash(cb))
 
                             break
             except pyrogram.StopPropagation:
